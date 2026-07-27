@@ -1,44 +1,69 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="sv">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SLOWandCAUTIOUS</title>
-
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Slow & Cautious — Portfolio</title>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
-
 <body>
+  <!-- Hero / omslagsbild bakom titel -->
+  <header class="hero" role="banner" aria-label="Omslagsbild">
+    <div class="hero-overlay"></div>
+    <div class="hero-content wrap">
+      <h1 class="brand">Slow &amp; Cautious</h1>
+      <p class="tagline">Fotografi • Portfolio</p>
+    </div>
+  </header>
 
-<header>
-    <h1>Slow & Cautious </h1>
-    <p>Life portfolio of Adam</p>
-</header>
-
-<main>
-
-    <section class="albums">
-
-        <div class="album">
-            <h2>BMW E90</h2>
-            <p>18 bilder</p>
-        </div>
-
-        <div class="album">
-            <h2>Italien</h2>
-            <p>42 bilder</p>
-        </div>
-
-        <div class="album">
-            <h2>Island</h2>
-            <p>27 bilder</p>
-        </div>
-
+  <main class="wrap" id="main">
+    <section class="profile">
+      <div class="profile-left">
+        <img class="avatar" src="albums/profile_thumb.jpg" alt="Adam — profilbild">
+      </div>
+      <div class="profile-right">
+        <div class="profile-name">Adam</div>
+        <div class="profile-stats">350 inlägg • 120 följare</div>
+        <p class="profile-bio">Enkel portfolio som visar album och enstaka bilder i en gråskalig, industriell stil.</p>
+      </div>
     </section>
 
-</main>
+    <section class="gallery" aria-label="Fotoalbum">
+      <a class="tile" href="albums/bmw1.jpg" data-title="BMW E90 — 18 bilder">
+        <img src="albums/bmw1_thumb.jpg" alt="BMW E90">
+        <div class="overlay"><div class="meta">BMW E90<br><small>18 bilder</small></div></div>
+      </a>
 
-<script src="js/script.js"></script>
+      <a class="tile" href="albums/italien1.jpg" data-title="Italien — 42 bilder">
+        <img src="albums/italien1_thumb.jpg" alt="Italien">
+        <div class="overlay"><div class="meta">Italien<br><small>42 bilder</small></div></div>
+      </a>
 
+      <a class="tile" href="albums/island1.jpg" data-title="Island — 27 bilder">
+        <img src="albums/island1_thumb.jpg" alt="Island">
+        <div class="overlay"><div class="meta">Island<br><small>27 bilder</small></div></div>
+      </a>
+
+      <!-- Fler tiles -->
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <small>© <span id="year"></span> Slow &amp; Cautious</small>
+    </div>
+  </footer>
+
+  <!-- Lightbox -->
+  <div id="lightbox" class="lightbox" aria-hidden="true">
+    <button class="close" aria-label="Stäng">×</button>
+    <img class="lightbox-img" src="" alt="">
+    <div class="caption"></div>
+    <button class="prev" aria-label="Föregående">‹</button>
+    <button class="next" aria-label="Nästa">›</button>
+  </div>
+
+  <script src="js/script.js"></script>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 </body>
 </html>
