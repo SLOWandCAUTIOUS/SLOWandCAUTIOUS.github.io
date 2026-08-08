@@ -88,8 +88,12 @@
       // Make absolute paths so images load correctly when injected
       absolutizePaths(fetchedMain, res.url);
 
-      // Replace main content
-      if(mainEl) mainEl.innerHTML = fetchedMain.innerHTML;
+      // Use animated replacement if available
+      if(typeof replaceMainWith === 'function'){
+        replaceMainWith(fetchedMain.innerHTML);
+      } else {
+        if(mainEl) mainEl.innerHTML = fetchedMain.innerHTML;
+      }
 
       // Update document title
       const newTitle = doc.querySelector('title')?.textContent || document.title;
@@ -118,16 +122,58 @@
     updateClickables();
   }
 
+  // Animated replacement helper (fade + slide)
+  function replaceMainWith(nodeHtml){
+    const main = document.getElementById('main');
+    if(!main) return;
+
+    main.classList.add('main-transition-exit');
+    // force reflow
+    void main.offsetWidth;
+    main.classList.add('main-transition-active');
+
+    setTimeout(() => {
+      main.classList.remove('main-transition-exit', 'main-transition-active');
+      main.innerHTML = nodeHtml;
+
+      // enter
+      main.classList.add('main-transition-enter');
+      void main.offsetWidth;
+      main.classList.add('main-transition-active');
+
+      setTimeout(() => {
+        main.classList.remove('main-transition-enter', 'main-transition-active');
+      }, 360);
+    }, 180);
+  }
+
   // Global click delegation
   document.addEventListener('click', function(e){
     const a = e.target.closest('a');
     if(!a) return;
 
-    // If it's a gallery tile, load album inline instead of navigating
-    if(a.matches('.gallery .tile')){
+    // don't intercept if default already prevented
+    if(e.defaultPrevented) return;
+    // only handle left clicks (button === 0); some browsers set e.button undefined for keyboard activations
+    if(typeof e.button === 'number' && e.button !== 0) return;
+    // respect modifier keys (open in new tab / special behavior)
+    if(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    // respect target
+    if(a.target && a.target === '_blank') return;
+    // respect download links
+    if(a.hasAttribute('download')) return;
+
+    const hrefAttr = a.getAttribute('href') || '';
+    let resolvedPath = hrefAttr;
+    try { resolvedPath = new URL(hrefAttr, location.href).pathname; } catch(_){ /* leave as-is */ }
+
+    // Match both /album/NN/ and /albums/NN/ variants (only the album index pages)
+    const isAlbumLink = /^\/albums?\/[0-9]+\/?$/.test(resolvedPath);
+
+    // If it's an album link anywhere on the page, load in-place
+    if(isAlbumLink){
       e.preventDefault();
-      const href = a.getAttribute('href');
-      if(href) loadAlbumInMain(href, true);
+      loadAlbumInMain(hrefAttr);
       return;
     }
 
@@ -138,7 +184,7 @@
       return;
     }
 
-    // Other anchors: allow default
+    // Otherwise allow default navigation
   }, false);
 
   // Keyboard & lightbox button bindings
