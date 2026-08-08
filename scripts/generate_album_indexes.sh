@@ -5,10 +5,21 @@ set -euo pipefail
 # Usage: ./scripts/generate_album_indexes.sh
 # Scans the ./album/* directories and generates a static index.html for each album
 # and regenerates the album overview at ./album/index.html.
+# If thumbnails exist (name_thumb.ext or name-thumb.ext), the generated album pages
+# will use the thumbnail as the <img src=> and keep the <a href=> pointing to full image.
+# Optionally, if ImageMagick is installed and you pass --make-thumbs, the script will
+# generate thumbnails for images and name them with _thumb before the extension.
 
 ROOT_DIR="$(pwd)"
 ALBUMS_DIR="album"
 OUT_OVERVIEW="$ALBUMS_DIR/index.html"
+MAKE_THUMBS=false
+THUMB_MAX_WIDTH=1200
+
+if [ "${1:-}" = "--make-thumbs" ]; then
+  MAKE_THUMBS=true
+  echo "Will attempt to generate thumbnails (ImageMagick required)."
+fi
 
 # Helper: create an album index from files in the directory
 generate_album() {
@@ -38,23 +49,52 @@ EOF
   for img in "$dir"/*.{jpg,jpeg,png,webp,gif,svg}; do
     [ -f "$img" ] || continue
     imgname="$(basename "$img")"
-    # Determine mime type for source tag (basic guess)
-    case "${imgname,,}" in
-      *.svg) mimetype="image/svg+xml" ;;
-      *.webp) mimetype="image/webp" ;;
-      *.png) mimetype="image/png" ;;
-      *.gif) mimetype="image/gif" ;;
-      *) mimetype="image/jpeg" ;;
-    esac
+    ext="${imgname##*.}"
+    base="${imgname%.*}"
 
-    cat >> "$out" <<EOF
+    # Candidate thumb names
+    thumb1="$dir/${base}_thumb.$ext"
+    thumb2="$dir/${base}-thumb.$ext"
+
+    # Optionally create thumbnail if requested and ImageMagick is available
+    if [ "$MAKE_THUMBS" = true ]; then
+      if command -v magick >/dev/null 2>&1; then
+        thumb1="$dir/${base}_thumb.$ext"
+        if [ ! -f "$thumb1" ]; then
+          echo "Creating thumbnail $thumb1"
+          magick convert "$img" -resize ${THUMB_MAX_WIDTH}x -quality 80 "$thumb1"
+        fi
+      fi
+    fi
+
+    # Decide which thumbnail to use (if present)
+    thumbsrc=""
+    if [ -f "$thumb1" ]; then
+      thumbsrc="${base}_thumb.$ext"
+    elif [ -f "$thumb2" ]; then
+      thumbsrc="${base}-thumb.$ext"
+    fi
+
+    # If thumb exists use it as <img src> but keep <a href> pointing to full image
+    if [ -n "$thumbsrc" ]; then
+      cat >> "$out" <<EOF
       <div class="photo">
         <a href="./$imgname" data-title="$imgname"><picture>
-          <source srcset="./$imgname" type="$mimetype">
+          <source srcset="./$thumbsrc" type="image/$ext">
+          <img src="./$thumbsrc" alt="$imgname" loading="lazy">
+        </picture></a>
+      </div>
+EOF
+    else
+      cat >> "$out" <<EOF
+      <div class="photo">
+        <a href="./$imgname" data-title="$imgname"><picture>
+          <source srcset="./$imgname" type="image/$ext">
           <img src="./$imgname" alt="$imgname" loading="lazy">
         </picture></a>
       </div>
 EOF
+    fi
   done
   shopt -u nullglob
 
@@ -105,6 +145,29 @@ EOF
     # sort numeric descending
     IFS=$'\n' sorted_nums=($(printf "%s\n" "${nums[@]}" | sort -rn))
     for n in "${sorted_nums[@]}"; do
+      # Use a thumbnail if present in album dir (first image or cover)
+      thumb="/albums/cover.jpg"
+      # try to find a thumb file inside the album
+      if [ -d "$ALBUMS_DIR/$n" ]; then
+        # find first thumb-like file
+        found=""
+        for t in "$ALBUMS_DIR/$n"/*_thumb.* "$ALBUMS_DIR/$n"/*-thumb.*; do
+          if [ -f "$t" ]; then
+            fn="$(basename "$t")"
+            found="$fn"
+            break
+          fi
+        done
+        if [ -n "$found" ]; then
+          thumb="/album/$n/$found"
+        else
+          # fallback to first image in folder
+          for i in "$ALBUMS_DIR/$n"/*.{jpg,jpeg,png,webp,gif,svg}; do
+            if [ -f "$i" ]; then fn="$(basename "$i")"; thumb="/album/$n/$fn"; break; fi
+          done
+        fi
+      fi
+
       cat >> "$OUT_OVERVIEW" <<EOF
       <li><a href="/album/$n/">$n</a></li>
 EOF
