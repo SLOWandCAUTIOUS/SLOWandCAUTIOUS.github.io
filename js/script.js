@@ -160,24 +160,18 @@
     if(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     // respect target
     if(a.target && a.target === '_blank') return;
+    // respect download links
+    if(a.hasAttribute('download')) return;
 
     const hrefAttr = a.getAttribute('href') || '';
     let resolvedPath = hrefAttr;
     try { resolvedPath = new URL(hrefAttr, location.href).pathname; } catch(_){ /* leave as-is */ }
 
-    // Match both /album/NN/ and /albums/NN/ variants
+    // Match both /album/NN/ and /albums/NN/ variants (only the album index pages)
     const isAlbumLink = /^\/albums?\/[0-9]+\/?$/.test(resolvedPath);
 
-    // If it's a gallery tile (startsida) and album link, load in-place
-    if(isAlbumLink && a.matches('.gallery .tile')){
-      e.preventDefault();
-      // use hrefAttr (allows relative) when fetching
-      loadAlbumInMain(hrefAttr);
-      return;
-    }
-
-    // Some generated tiles might live directly under .gallery without the exact class on the anchor
-    if(isAlbumLink && a.closest('.gallery')){
+    // If it's an album link anywhere on the page, load in-place
+    if(isAlbumLink){
       e.preventDefault();
       loadAlbumInMain(hrefAttr);
       return;
