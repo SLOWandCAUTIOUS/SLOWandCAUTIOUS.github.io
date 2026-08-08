@@ -70,6 +70,29 @@
     });
   }
 
+  // When an album's main is injected, enhance its gallery to be scrollable and open images in lightbox
+  function enhanceAlbumGallery(){
+    const gallery = document.querySelector('.album-gallery');
+    if(!gallery) return;
+    try{
+      // avoid duplicate initialization
+      if(gallery.dataset.enhanced === '1') return;
+      gallery.dataset.enhanced = '1';
+
+      // make album vertically scrollable inside main
+      gallery.classList.add('scrollable-album');
+
+      // intercept clicks inside the album gallery to open lightbox instead of navigating
+      gallery.addEventListener('click', function(e){
+        const a = e.target.closest && e.target.closest('a');
+        if(!a) return;
+        if(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; // respect modifier keys
+        e.preventDefault();
+        openLightboxFromAnchor(a);
+      });
+    }catch(err){ console.error('enhanceAlbumGallery error', err); }
+  }
+
   async function loadAlbumInMain(href, push=true){
     try{
       const res = await fetch(href);
@@ -101,6 +124,8 @@
 
       // Ensure UI bindings that depend on DOM are updated
       updateClickables();
+      // enhance album gallery when an album page is injected
+      enhanceAlbumGallery();
 
       // push history
       if(push){
