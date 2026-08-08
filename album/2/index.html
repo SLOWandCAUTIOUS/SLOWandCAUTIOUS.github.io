@@ -9,8 +9,21 @@
 <body>
   <main class="wrap">
     <h1>Album 2</h1>
-    <p>Inga bilder än. Lägg upp bilder i mappen <code>/album/2/</code> med normaliserade namn (små bokstäver, bindestreck).</p>
-    <section class="album-gallery" aria-label="Album 2 bilder"></section>
+    <section class="album-gallery" aria-label="Album 2 bilder">
+      <div class="photo">
+        <a href="./kullaberg.jpg" data-title="kullaberg.jpg"><picture>
+          <source srcset="./kullaberg_thumb.jpg" type="image/jpeg">
+          <img src="./kullaberg_thumb.jpg" alt="kullaberg.jpg" loading="lazy">
+        </picture></a>
+      </div>
+      <div class="photo">
+        <a href="./kullaberg-picknick.jpg" data-title="kullaberg-picknick.jpg"><picture>
+          <source srcset="./kullaberg-picknick.jpg" type="image/jpeg">
+          <img src="./kullaberg-picknick.jpg" alt="kullaberg-picknick.jpg" loading="lazy">
+        </picture></a>
+      </div>
+
+    </section>
     <p><a href="/album/">← Tillbaka till albumöversikten</a></p>
   </main>
 </body>
