@@ -32,20 +32,21 @@
     for(const a of links){
       const href = a.getAttribute('href');
       const albumName = href.replace(/\/+$/,'').split('/').pop();
-      let thumb = '/albums/cover.jpg';
 
-      // if we already prefetched, try to find first img
-      if(window.__albumCache.has(href)){
-        const t2 = window.__albumCache.get(href);
-        const d2 = parser.parseFromString(t2,'text/html');
-        const img = d2.querySelector('.album-gallery img');
-        if(img) thumb = new URL(img.getAttribute('src'), href).href;
-      } else {
-        // attempt quick HEAD for a common thumb name inside album
-        const candidateThumbs = [
-          `${href}*/_thumb`,
-        ];
-      }
+      // Attempt to fetch album index first to determine a thumbnail
+      let thumb = '/albums/cover.jpg';
+      try{
+        const r2 = await fetch(href);
+        if(r2.ok){
+          const t2 = await r2.text();
+          window.__albumCache.set(href, t2);
+          const d2 = parser.parseFromString(t2, 'text/html');
+          const firstImg = d2.querySelector('.album-gallery img');
+          if(firstImg){
+            thumb = new URL(firstImg.getAttribute('src'), href).href;
+          }
+        }
+      }catch(e){ /* ignore and keep fallback thumbnail */ }
 
       const tile = document.createElement('a');
       tile.className = 'tile';
@@ -81,20 +82,15 @@
 
       // also prefetch on focus (keyboard)
       tile.addEventListener('focus', () => { prefetch(href); });
-
-      // if we have cache already, update tile image to the cached first image
-      if(window.__albumCache.has(href)){
-        try{
-          const t2 = window.__albumCache.get(href);
-          const d2 = parser.parseFromString(t2,'text/html');
-          const img2 = d2.querySelector('.album-gallery img');
-          if(img2){
-            const thumbUrl = new URL(img2.getAttribute('src'), href).href;
-            source.srcset = thumbUrl;
-            img.src = thumbUrl;
-          }
-        }catch(e){ /* ignore */ }
-      }
     }
+
+    // delegated prefetch (capture) — more reliable when tiles are reflowed
+    document.addEventListener('pointerenter', function(ev){
+      const t = ev.target.closest && ev.target.closest('.tile');
+      if(!t) return;
+      const href = t.getAttribute('href');
+      setTimeout(()=>{ if(t.matches(':hover')) prefetch(href); }, 120);
+    }, true);
+
   }catch(e){ console.error('Failed to load album overview', e); }
 })();
