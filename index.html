@@ -32,33 +32,8 @@
       </div>
     </section>
 
-    <section class="gallery" aria-label="Fotoalbum">
-      <a class="tile" href="albums/bmw/index.html" data-title="BMW E90 — 18 bilder" aria-label="Album: BMW E90, 18 bilder">
-        <picture>
-          <source srcset="albums/dsc01560.jpg" type="image/jpeg">
-          <img src="albums/dsc01560.jpg" alt="Thumbnail: BMW E90" loading="lazy">
-        </picture>
-        <div class="overlay"><div class="meta">BMW E90<br><small>18 bilder</small></div></div>
-      </a>
-
-      <a class="tile" href="albums/italien/index.html" data-title="Italien — 42 bilder" aria-label="Album: Italien, 42 bilder">
-        <picture>
-          <source srcset="albums/dsc01559.jpg" type="image/jpeg">
-          <img src="albums/dsc01559.jpg" alt="Thumbnail: Italien" loading="lazy">
-        </picture>
-        <div class="overlay"><div class="meta">Italien<br><small>42 bilder</small></div></div>
-      </a>
-
-      <a class="tile" href="albums/island/index.html" data-title="Island — 27 bilder" aria-label="Album: Island, 27 bilder">
-        <picture>
-          <source srcset="albums/dsc01560.jpg" type="image/jpeg">
-          <img src="albums/dsc01560.jpg" alt="Thumbnail: Island" loading="lazy">
-        </picture>
-        <div class="overlay"><div class="meta">Island<br><small>27 bilder</small></div></div>
-      </a>
-
-      <!-- Fler tiles kan läggas till här -->
-    </section>
+    <!-- Gallery: tiles are built dynamically from /album/index.html -->
+    <section class="gallery" aria-label="Fotoalbum"></section>
   </main>
 
   <button id="back-to-top" class="back-to-top" aria-label="Gå till toppen">↑</button>
@@ -79,6 +54,7 @@
   </div>
 
   <script src="js/script.js"></script>
+  <script src="js/load-albums.js"></script>
   <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 </body>
 </html>
