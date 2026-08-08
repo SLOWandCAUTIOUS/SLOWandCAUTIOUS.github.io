@@ -1,9 +1,6 @@
-// Lightbox + album behavior, plus Skip hero and Back-to-top
-(() => {
-  // Lightbox (supports gallery tiles and album photos)
-  const tiles = Array.from(document.querySelectorAll('.gallery .tile'));
-  const albumPhotos = Array.from(document.querySelectorAll('.album-gallery .photo a'));
-  const clickables = tiles.concat(albumPhotos);
+// UI init + dynamic album navigation + lightbox
+(function(){
+  'use strict';
 
   const lb = document.getElementById('lightbox');
   const lbImg = lb?.querySelector('.lightbox-img');
@@ -11,48 +8,182 @@
   const closeBtn = lb?.querySelector('.close');
   const prevBtn = lb?.querySelector('.prev');
   const nextBtn = lb?.querySelector('.next');
+  const backToTopBtn = document.getElementById('back-to-top');
+  const skipBtn = document.getElementById('skip-hero');
+  const mainEl = document.getElementById('main');
 
-  let current = -1;
-  function open(index){
-    const a = clickables[index];
+  let originalMainHTML = mainEl ? mainEl.innerHTML : '';
+  let currentClickables = [];
+  let currentIndex = -1;
+
+  function updateClickables(){
+    currentClickables = Array.from(document.querySelectorAll('.gallery .tile, .album-gallery .photo a'));
+  }
+
+  function openLightboxFromAnchor(a){
+    updateClickables();
+    currentIndex = currentClickables.indexOf(a);
+    if(currentIndex === -1) currentIndex = 0;
+    openByIndex(currentIndex);
+  }
+
+  function openByIndex(i){
+    const a = currentClickables[i];
     if(!a) return;
     lbImg.src = a.href;
     caption.textContent = a.dataset.title || a.querySelector('img')?.alt || '';
     lb.classList.add('show');
     lb.setAttribute('aria-hidden','false');
     closeBtn?.focus();
-    current = index;
+    currentIndex = i;
   }
-  function close(){ lb.classList.remove('show'); lb.setAttribute('aria-hidden','true'); current = -1; }
-  function next(){ if(current<clickables.length-1) open(current+1); }
-  function prev(){ if(current>0) open(current-1); }
+  function closeLightbox(){ lb.classList.remove('show'); lb.setAttribute('aria-hidden','true'); currentIndex = -1; lbImg.src = ''; }
+  function nextLightbox(){ if(currentIndex < currentClickables.length -1) openByIndex(currentIndex+1); }
+  function prevLightbox(){ if(currentIndex > 0) openByIndex(currentIndex-1); }
 
-  clickables.forEach((t,i)=> t.addEventListener('click', e => { if(t.closest('.tile')){/* allow navigation to album */ if(t.closest('.tile')){ /* if it's a tile on index page, we want default behavior to follow link to album */ }} e.preventDefault(); open(i); }));
-  clickables.forEach(t => t.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); t.click(); } }));
+  // Back-to-top visibility
+  function updateBack(){ if(window.scrollY > 400) backToTopBtn?.classList.add('show'); else backToTopBtn?.classList.remove('show'); }
 
-  closeBtn?.addEventListener('click', close);
-  nextBtn?.addEventListener('click', next);
-  prevBtn?.addEventListener('click', prev);
-  lb?.addEventListener('click', e => { if (e.target === lb) close(); });
+  // Replace relative image/srcset paths inside a container to absolute based on baseUrl
+  function absolutizePaths(container, baseUrl){
+    const imgs = container.querySelectorAll('img');
+    imgs.forEach(img => {
+      const s = img.getAttribute('src');
+      if(s && !/^https?:|^\/\//.test(s) && !s.startsWith('/')){
+        img.src = new URL(s, baseUrl).href;
+      }
+    });
+    const sources = container.querySelectorAll('source');
+    sources.forEach(src => {
+      const ss = src.getAttribute('srcset');
+      if(ss && !/^https?:|^\/\//.test(ss) && !ss.startsWith('/')){
+        src.srcset = new URL(ss, baseUrl).href;
+      }
+    });
+    // Also adjust anchors inside album main so hrefs remain correct
+    const anchors = container.querySelectorAll('a');
+    anchors.forEach(a => {
+      const h = a.getAttribute('href');
+      if(h && !/^https?:|^\/\//.test(h) && !h.startsWith('/')){
+        a.href = new URL(h, baseUrl).href;
+      }
+    });
+  }
 
-  document.addEventListener('keydown', e => {
-    if (lb?.classList.contains('show')) {
-      if (e.key === 'Escape') close();
-      if (e.key === 'ArrowRight') next();
-      if (e.key === 'ArrowLeft') prev();
+  async function loadAlbumInMain(href, push=true){
+    try{
+      const res = await fetch(href);
+      if(!res.ok) {
+        console.error('Failed to fetch album', href, res.status);
+        return;
+      }
+      const txt = await res.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(txt, 'text/html');
+      const fetchedMain = doc.querySelector('main');
+      if(!fetchedMain){
+        console.error('No <main> in fetched album', href);
+        return;
+      }
+      // Make absolute paths so images load correctly when injected
+      absolutizePaths(fetchedMain, res.url);
+
+      // Replace main content
+      if(mainEl) mainEl.innerHTML = fetchedMain.innerHTML;
+
+      // Update document title
+      const newTitle = doc.querySelector('title')?.textContent || document.title;
+      document.title = newTitle;
+
+      // Ensure UI bindings that depend on DOM are updated
+      updateClickables();
+
+      // push history
+      if(push){
+        history.pushState({albumUrl: href}, '', href);
+      } else {
+        history.replaceState({albumUrl: href}, '', href);
+      }
+
+      // Scroll to top of main
+      mainEl?.scrollIntoView({behavior:'smooth'});
+
+    }catch(e){ console.error('loadAlbumInMain error', e); }
+  }
+
+  // Restore home/main content
+  function restoreHome(){
+    if(mainEl) mainEl.innerHTML = originalMainHTML;
+    document.title = 'Slow & Cautious — Portfolio';
+    updateClickables();
+  }
+
+  // Global click delegation
+  document.addEventListener('click', function(e){
+    const a = e.target.closest('a');
+    if(!a) return;
+
+    // If it's a gallery tile, load album inline instead of navigating
+    if(a.matches('.gallery .tile')){
+      e.preventDefault();
+      const href = a.getAttribute('href');
+      if(href) loadAlbumInMain(href, true);
+      return;
+    }
+
+    // If it's an album photo, open lightbox
+    if(a.matches('.album-gallery .photo a')){
+      e.preventDefault();
+      openLightboxFromAnchor(a);
+      return;
+    }
+
+    // Other anchors: allow default
+  }, false);
+
+  // Keyboard & lightbox button bindings
+  document.addEventListener('keydown', function(e){
+    if(lb?.classList.contains('show')){
+      if(e.key === 'Escape') closeLightbox();
+      if(e.key === 'ArrowRight') nextLightbox();
+      if(e.key === 'ArrowLeft') prevLightbox();
     }
   });
 
-  // Skip hero button
-  const skip = document.getElementById('skip-hero');
-  if (skip) skip.addEventListener('click', () => {
-    const main = document.getElementById('main');
-    main?.scrollIntoView({behavior:'smooth'});
+  closeBtn?.addEventListener('click', closeLightbox);
+  nextBtn?.addEventListener('click', nextLightbox);
+  prevBtn?.addEventListener('click', prevLightbox);
+
+  // Make images/tiles focusable by keyboard
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){
+      const el = document.activeElement;
+      if(el && (el.matches('.gallery .tile') || el.matches('.album-gallery .photo a'))){
+        el.click();
+      }
+    }
   });
 
+  // Skip hero
+  if(skipBtn) skipBtn.addEventListener('click', ()=>{ mainEl?.scrollIntoView({behavior:'smooth'}); });
+
   // Back to top
-  const back = document.getElementById('back-to-top');
-  function updateBack(){ if(window.scrollY > 400) back?.classList.add('show'); else back?.classList.remove('show'); }
   window.addEventListener('scroll', updateBack); updateBack();
-  back?.addEventListener('click', () => window.scrollTo({top:0,behavior:'smooth'}));
+  backToTopBtn?.addEventListener('click', ()=> window.scrollTo({top:0,behavior:'smooth'}));
+
+  // Handle popstate
+  window.addEventListener('popstate', function(e){
+    const state = e.state;
+    if(state && state.albumUrl){
+      // load album but do not push new history
+      loadAlbumInMain(state.albumUrl, false);
+    } else {
+      // state null -> restore home
+      restoreHome();
+      history.replaceState(null, '', '/');
+    }
+  });
+
+  // Init clickables on load
+  updateClickables();
 })();
